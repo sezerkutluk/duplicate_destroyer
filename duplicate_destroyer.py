@@ -5,7 +5,10 @@ from functools import partial
 import hashlib
 import os
 from filecmp import cmp, clear_cache
+from datetime import datetime
 
+
+LOG_FILE = "log.txt"
 
 class Item:
     def __init__(self, name, item_id, hash, is_main=False):
@@ -22,9 +25,11 @@ cb_counter = 0
 def main(page: ft.Page):
     global items
 
+    print(datetime.now(), file=open(LOG_FILE, "a"))
+
     def on_dialog_result(e: ft.FilePickerResultEvent):
-        print("Selected files:", e.files)
-        print("Selected file or directory:", e.path)
+        # print("Selected files:", e.files, file=open(LOG_FILE, "a"))
+        # print("Selected file or directory:", e.path, file=open(LOG_FILE, "a"))
         if e.files != None:
             for i in e.files:
                 file_list = textfield1.value.splitlines()
@@ -48,9 +53,9 @@ def main(page: ft.Page):
         elif cb_counter == 0:
             button3.disabled = True
         else:
-            print("cb_counter < 0 !")
+            print("OMG HOW'S THAT EVEN POSSIBLE cb_counter < 0 !", file=open(LOG_FILE, "a"))
 
-        print(cb_counter)
+        # print(cb_counter)
         button3.update()
         show_widgets()
 
@@ -65,11 +70,11 @@ def main(page: ft.Page):
         elif cb_counter == 0:
             button3.disabled = True
         else:
-            print("cb_counter < 0 !")
+            print("OMG! WHAT THE HELL! cb_counter < 0 !", file=open(LOG_FILE, "a"))
 
         show_widgets()
         button3.update()
-        print(cb_counter)
+        # print(cb_counter)
 
     def show_widgets():
         col.controls = []
@@ -80,7 +85,7 @@ def main(page: ft.Page):
                 hash_list.append(items[i].hash)
 
         for hash in hash_list:
-            col.controls.append(ft.Text(value=hash))
+            col.controls.append(ft.Text(value="SHA-256:  " + hash))
             item_list = [items[i] for i in items if items[i].hash == hash]
             for i in item_list:
                 sw = ft.Switch(value=i.is_main, on_change=partial(on_switch_change, i.item_id), disabled=i.is_deleted)
@@ -99,12 +104,15 @@ def main(page: ft.Page):
             button2.disabled = False
         else:
             button2.disabled = True
+            status_text.value = "Let's hunt down some duplicates"
+            status_text.color = "Green"
             col.controls = []
             col.update()
         page.update()
 
     def find_duplicates(e):
         global cb_counter
+
         cb_counter = 0
 
         lines = textfield1.value.splitlines()
@@ -113,6 +121,10 @@ def main(page: ft.Page):
 
         global items
         items = {}
+
+        status_text.value = "Finding those stinky duplicates..."
+        status_text.color = "Red"
+        status_text.update()
 
         for line in lines:
             if os.path.exists(line):
@@ -141,6 +153,10 @@ def main(page: ft.Page):
                 items[item_id] = item
         show_widgets()
 
+        status_text.value = "Duplicate search completed"
+        status_text.color = "Green"
+        status_text.update()
+
     def delete_duplicates(e):
         global items
         global cb_counter
@@ -157,29 +173,36 @@ def main(page: ft.Page):
             if len(main_file) == 1:
                 main_file = main_file[0]
             else:
-                print("OMG NO! THAT'S SO BAD!")
+                print("OMG! ARE YOU SERIOUS?", file=open(LOG_FILE, "a"))
 
             for file in files:
                 if file != main_file:
                     clear_cache()
                     paranoia_mode_check = cmp(items[file].name, items[main_file].name, shallow=False)
                     if paranoia_mode_check is True:
-                        print(items[file].name, "and", items[main_file].name, "are the same.")
+                        # print(items[file].name, "and", items[main_file].name, "are the same.", file=open(LOG_FILE, "a"))
                         items[file].is_deleted = True
                         cb_counter -= 1
-                        print(cb_counter)
-
+                        # print(cb_counter, file=open(LOG_FILE, "a"))
                         
                         if os.path.exists(items[file].name):
                             os.remove(items[file].name)
+                            print("File", items[file].name, "was destroyed successfully \m/.", file=open(LOG_FILE, "a"))
+                            status_text.value = "Annihilated some duplicates in happiness and joy"
+                            status_text.color = "Green"
+                            status_text.update()
+
+                            button3.disabled = True
+                            button3.update()
                         else:
-                            print("NO THAT CAN'T BE TRUE!") 
+                            print("OMG NO THAT CAN'T BE TRUE!", file=open(LOG_FILE, "a")) 
                     else:
-                        print("OMG NO!")
+                        print("OMG NO!", file=open(LOG_FILE, "a"))
         show_widgets()
 
     def set_main(item_id, val):
         global cb_counter
+
         if val is True:
             items[item_id].is_main = True
             if items[item_id].to_delete == True:
@@ -213,8 +236,11 @@ def main(page: ft.Page):
     button1 = ft.ElevatedButton(text="Choose files", on_click=lambda _: fp.pick_files(allow_multiple=True))
     button2 = ft.ElevatedButton(text="Find duplicates", disabled=True, on_click=find_duplicates)
     button3 = ft.ElevatedButton(text="Destroy 'Em All", disabled=True, on_click=delete_duplicates)
-    textfield1 = ft.TextField(label="List of items to check", multiline=True, max_lines=10, on_change=on_textfield_change)
-    page.add(ft.Column(controls=[textfield1, ft.Row(controls=[button1, button2, button3])]))
+    textfield1 = ft.TextField(label="List of files/folders to check", multiline=True, max_lines=10, on_change=on_textfield_change)
+    status_text = ft.Text(value="Let's hunt down some duplicates", color="Green")
+    page.add(ft.Column(controls=[textfield1,
+                                 status_text,
+                                 ft.Row(controls=[button1, button2, button3])]))
 
     fp = ft.FilePicker(on_result=on_dialog_result)
     page.overlay.append(fp)
