@@ -87,16 +87,17 @@ def main(page: ft.Page):
         for hash in hash_list:
             col.controls.append(ft.Text(value="SHA-256:  " + hash))
             item_list = [items[i] for i in items if items[i].hash == hash]
-            for i in item_list:
-                sw = ft.Switch(value=i.is_main, on_change=partial(on_switch_change, i.item_id), disabled=i.is_deleted)
-                if i.is_deleted == True:
-                    cb = ft.Checkbox(label=i.name, value=i.to_delete,
-                                     disabled=True, on_change=partial(on_cb_change, i.item_id),
-                                     fill_color='Green')
-                else:
-                    cb = ft.Checkbox(label=i.name, value=i.to_delete, disabled=i.is_main, on_change=partial(on_cb_change, i.item_id),
-                                     check_color="Red")
-                col.controls.append(ft.Row([sw, cb]))
+            if len(item_list) > 1:
+                for i in item_list:
+                    sw = ft.Switch(value=i.is_main, on_change=partial(on_switch_change, i.item_id), disabled=i.is_deleted)
+                    if i.is_deleted == True:
+                        cb = ft.Checkbox(label=i.name, value=i.to_delete,
+                                        disabled=True, on_change=partial(on_cb_change, i.item_id),
+                                        fill_color='Green')
+                    else:
+                        cb = ft.Checkbox(label=i.name, value=i.to_delete, disabled=i.is_main, on_change=partial(on_cb_change, i.item_id),
+                                        check_color="Red")
+                    col.controls.append(ft.Row([sw, cb]))
         col.update()
 
     def on_textfield_change(e):
