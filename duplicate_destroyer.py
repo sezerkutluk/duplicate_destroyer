@@ -6,6 +6,7 @@ import hashlib
 import os
 from filecmp import cmp, clear_cache
 from datetime import datetime
+from natsort import natsorted
 
 
 LOG_FILE = "log.txt"
@@ -85,9 +86,9 @@ def main(page: ft.Page):
                 hash_list.append(items[i].hash)
 
         for hash in hash_list:
-            col.controls.append(ft.Text(value="SHA-256:  " + hash))
             item_list = [items[i] for i in items if items[i].hash == hash]
             if len(item_list) > 1:
+                col.controls.append(ft.Text(value="SHA-256:  " + hash))
                 for i in item_list:
                     sw = ft.Switch(value=i.is_main, on_change=partial(on_switch_change, i.item_id), disabled=i.is_deleted)
                     if i.is_deleted == True:
@@ -134,7 +135,7 @@ def main(page: ft.Page):
                         file_list.append(line)
                 elif os.path.isdir(line):
                     for root, dirs, files in os.walk(line):
-                        for file in files:
+                        for file in natsorted(files):
                             file_path = os.path.join(root, file)
                             if file_path not in file_list:
                                 file_list.append(file_path)
