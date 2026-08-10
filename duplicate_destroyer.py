@@ -136,6 +136,8 @@ def main(page: ft.Page):
                 elif os.path.isdir(line):
                     for root, dirs, files in os.walk(line):
                         for file in natsorted(files):
+                            # _, extension = os.path.splitext(file)
+                            # if extension == ".pdf":
                             file_path = os.path.join(root, file)
                             if file_path not in file_list:
                                 file_list.append(file_path)
@@ -144,8 +146,7 @@ def main(page: ft.Page):
         
         for file in file_list:
             with open(file, "rb") as f:
-                digest = hashlib.file_digest(f, "sha256")
-                hash = digest.hexdigest()
+                hash = hashlib.sha256(f.read()).hexdigest()
                 item_id = uuid.uuid1()
                 if hash not in hash_list:
                     hash_list.append(hash)
@@ -179,23 +180,35 @@ def main(page: ft.Page):
 
             for file in files:
                 if file != main_file:
+                    # Guard 1: Prevent deleting hard links / symlinks pointing to the main file
+                    if os.path.exists(items[file].name) and os.path.exists(items[main_file].name):
+                        if os.path.samefile(items[file].name, items[main_file].name):
+                            print(f"Skipping {items[file].name}: Points to the exact same file on disk.", file=open(LOG_FILE, "a"))
+                            continue
+
                     clear_cache()
                     paranoia_mode_check = cmp(items[file].name, items[main_file].name, shallow=False)
                     if paranoia_mode_check is True:
                         # print(items[file].name, "and", items[main_file].name, "are the same.", file=open(LOG_FILE, "a"))
-                        items[file].is_deleted = True
-                        cb_counter -= 1
                         # print(cb_counter, file=open(LOG_FILE, "a"))
                         
                         if os.path.exists(items[file].name):
-                            os.remove(items[file].name)
-                            print("File", items[file].name, "was destroyed successfully \m/.", file=open(LOG_FILE, "a"))
-                            status_text.value = "Annihilated some duplicates in happiness and joy"
-                            status_text.color = "Green"
-                            status_text.update()
+                            try:
+                                os.remove(items[file].name)
+                                items[file].is_deleted = True
+                                cb_counter -= 1
+                                print("File", items[file].name, "was destroyed successfully \m/.", file=open(LOG_FILE, "a"))
+                                status_text.value = "Annihilated some duplicates in happiness and joy"
+                                status_text.color = "Green"
+                                status_text.update()
 
-                            button3.disabled = True
-                            button3.update()
+                                button3.disabled = True
+                                button3.update()
+                            except OSError as err:
+                                print(f"Failed to delete {items[file].name}: {err}", file=open(LOG_FILE, "a"))
+                                status_text.value = f"Error deleting file (locked or access denied)"
+                                status_text.color = "Red"
+                                status_text.update()
                         else:
                             print("OMG NO THAT CAN'T BE TRUE!", file=open(LOG_FILE, "a")) 
                     else:
